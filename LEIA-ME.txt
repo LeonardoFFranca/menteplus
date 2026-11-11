@@ -1,0 +1,10 @@
+MENTE+ - Protótipo funcional
+
+Para testar imediatamente: abra index.html no navegador de um computador ou celular.
+O progresso fica salvo no navegador/aparelho.
+
+Para gerar o APK: abra a pasta android no Android Studio, aguarde a sincronização do Gradle e selecione Build > Build Bundle(s) / APK(s) > Build APK(s).
+O APK ficará em android/app/build/outputs/apk/debug/app-debug.apk.
+
+Conteúdo: 12 aulas de leitura de inglês, 36 questões, vocabulário traduzível, jogos de memória, lógica e atenção, XP e progresso local.
+Funciona offline; não requer cadastro.
