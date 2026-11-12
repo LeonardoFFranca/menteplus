@@ -1,10 +1,11 @@
-MENTE+ - Protótipo funcional
+MENTE+ — Inglês do zero ao fluente (estilo Duolingo, 100% grátis)
 
-Para testar imediatamente: abra index.html no navegador de um computador ou celular.
-O progresso fica salvo no navegador/aparelho.
+Conteúdo: 6 seções (A1 → C1), 36 unidades, 144 lições, 216 palavras/expressões,
+216 frases, guias de gramática em português, 12 leituras e 3 jogos da mente.
 
-Para gerar o APK: abra a pasta android no Android Studio, aguarde a sincronização do Gradle e selecione Build > Build Bundle(s) / APK(s) > Build APK(s).
-O APK ficará em android/app/build/outputs/apk/debug/app-debug.apk.
+Pastas:
+  web/      → o app (index.html, style.css, app.js, content.js). Abra web/index.html no navegador para testar.
+  android/  → projeto Android que empacota a pasta web/ em um APK.
 
-Conteúdo: 12 aulas de leitura de inglês, 36 questões, vocabulário traduzível, jogos de memória, lógica e atenção, XP e progresso local.
-Funciona offline; não requer cadastro.
+APK: a cada envio para o GitHub, o Actions gera o APK e publica em Releases (tag "latest").
+Para editar o curso, mexa em web/content.js.

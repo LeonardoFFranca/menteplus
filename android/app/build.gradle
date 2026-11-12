@@ -1,3 +1,7 @@
 plugins { id 'com.android.application' }
-android { namespace 'com.menteplus.app'; compileSdk 35
- defaultConfig { applicationId 'com.menteplus.app'; minSdk 24; targetSdk 34; versionCode 1; versionName '1.0' } }
+android {
+  namespace 'com.menteplus.app'
+  compileSdk 35
+  defaultConfig { applicationId 'com.menteplus.app'; minSdk 24; targetSdk 34; versionCode 2; versionName '2.0' }
+  sourceSets { main { assets.srcDirs = ['../../web'] } }
+}
