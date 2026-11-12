@@ -130,14 +130,14 @@ function gloss(ev, w) {
 }
 
 /* ---------- Abas ---------- */
-const TABS = [['learn', '🏠', 'Aprender'], ['practice', '🎯', 'Praticar'], ['words', '📖', 'Palavras'], ['profile', '😊', 'Perfil']];
+const TABS = [['learn', '🔤', 'Inglês'], ['brain', '🧠', 'Mente'], ['practice', '🎯', 'Praticar'], ['words', '📖', 'Palavras'], ['profile', '😊', 'Perfil']];
 function renderTabs() { $('#tabs').style.display = S.onboard ? 'flex' : 'none'; $('#tabs').innerHTML = TABS.map(([id, ic, t]) => `<button class="tab ${tab === id ? 'on' : ''}" onclick="go('${id}')"><i>${ic}</i>${t}</button>`).join(''); }
-function go(t) { tab = t; SFX.tap(); render(); window.scrollTo(0, 0); if (t === 'learn') scrollToCurrent(); }
+function go(t) { if (t === 'brain' && tab === 'brain') bskill = null; tab = t; SFX.tap(); render(); window.scrollTo(0, 0); if (t === 'learn') scrollToCurrent(); }
 function render() {
   SAYS = [];
   renderTabs();
   if (!S.onboard) { $('#screen').innerHTML = welcomeHTML(); return; }
-  $('#screen').innerHTML = tab === 'learn' ? learnHTML() : tab === 'practice' ? practiceHTML() : tab === 'words' ? wordsPageHTML() : profileHTML();
+  $('#screen').innerHTML = tab === 'learn' ? learnHTML() : tab === 'brain' ? brainHTML() : tab === 'practice' ? practiceHTML() : tab === 'words' ? wordsPageHTML() : profileHTML();
 }
 function topbar() { return `<div class="topbar"><div class="logo">mente<b>+</b></div><div class="chips"><div class="chip wd">📚 ${learnedWords().length}</div><div class="chip xp">⚡ ${S.xp}</div></div></div>`; }
 function scrollToCurrent() { setTimeout(() => { const n = document.querySelector('.node.current'); if (n) n.scrollIntoView({block:'center', behavior:'smooth'}); }, 60); }
@@ -267,17 +267,21 @@ function startNode(i) { const n = NODES[i], u = UNITS[n.u]; runLesson({items:bui
 /* ---------- Motor de lição ---------- */
 let L = null;
 function showOverlay(html) { $('#overlay').innerHTML = html; $('#overlay').classList.add('show'); document.body.style.overflow = 'hidden'; }
-function closeOverlay() { $('#overlay').classList.remove('show'); $('#overlay').innerHTML = ''; document.body.style.overflow = ''; L = null; render(); if (tab === 'learn') scrollToCurrent(); }
+function closeOverlay() { if (L) clearTimeout(L.timer); $('#overlay').classList.remove('show'); $('#overlay').innerHTML = ''; document.body.style.overflow = ''; L = null; render(); if (tab === 'learn') scrollToCurrent(); }
 function runLesson(o) { L = Object.assign({queue:o.items.slice(), done:0, ok:0, bad:0, combo:0, start:Date.now(), graded:0}, o); L.sec = o.s != null ? o.s : 0; showEx(); }
-const ungraded = k => k === 'intro' || k === 'tip' || k === 'story' || k === 'seqshow';
+const ungraded = k => k === 'intro' || k === 'tip' || k === 'story' || k === 'seqshow' || k === 'numshow';
+const selfGraded = k => k === 'match' || k === 'memgrid' || k === 'corsi' || k === 'oddgrid';
 function showEx() {
   SAYS = [];
   const ex = L.queue[0]; L.ex = ex; L.ready = false; L.sel = null; L.placed = []; L.checked = false;
   const pct = L.done / (L.done + L.queue.length) * 100;
   const body = R[ex.k](ex);
-  const foot = ungraded(ex.k) ? `<button class="btn" id="chk" onclick="next()">${ex.k === 'tip' ? 'Entendi!' : ex.k === 'story' ? 'Responder perguntas' : ex.k === 'seqshow' ? 'Já memorizei' : 'Continuar'}</button>` : ex.k === 'match' ? '' : `<button class="btn" id="chk" disabled onclick="check()">Verificar</button>`;
+  const foot = ungraded(ex.k) ? `<button class="btn" id="chk" onclick="next()">${ex.k === 'tip' ? 'Entendi!' : ex.k === 'story' ? 'Responder perguntas' : ex.k === 'seqshow' || ex.k === 'numshow' ? 'Já memorizei' : 'Continuar'}</button>` : selfGraded(ex.k) ? '' : `<button class="btn" id="chk" disabled onclick="check()">Verificar</button>`;
   showOverlay(`<div class="lhead"><button class="xbtn" onclick="askQuit()">✕</button><div class="lprog"><div style="width:${Math.max(4, pct)}%"></div></div><div class="combo">${L.combo >= 3 ? '⚡' + L.combo : ''}</div></div><div class="lbody" id="lbody">${body}</div><div class="lfoot" id="lfoot"><div class="inner">${foot}</div></div>`);
   if (S_AUTO[ex.k]) setTimeout(() => S_AUTO[ex.k](ex), 350);
+  clearTimeout(L.timer);
+  if (ex.ms) L.timer = setTimeout(() => { if (L && L.ex === ex) next(); }, ex.ms);
+  if (ex.limit) L.timer = setTimeout(() => { if (L && L.ex === ex && !L.checked) finishCheck(false, '⏰ O tempo acabou! Tente ser mais rápido na próxima.', ex.opts ? ex.opts[ex.a] : ''); }, ex.limit * 1000 + 350);
 }
 const S_AUTO = {
   intro: ex => speak(ex.w[0]),
@@ -301,8 +305,10 @@ const R = {
     let top = '';
     if (ex.listen) top = `<div class="listen"><button class="big-spk" onclick="speak(L.ex.listen)">${SPK}</button><button class="big-spk slow" onclick="speak(L.ex.listen,true)">${SLOW}</button></div>`;
     else if (ex.say) top = speakerBubble(wordsHTML(ex.q), ex.say);
-    else if (ex.q) top = `<div class="card" style="margin-bottom:20px;font-size:18px;font-weight:800;line-height:1.45">${esc(ex.q)}</div>`;
-    return `${ex.kind ? kindTag(ex.kind) : ''}<div class="qtitle">${esc(ex.title)}</div>${top}<div class="opts">${ex.opts.map((o, i) => `<button class="opt" id="o${i}" onclick="pickOpt(${i})"><span class="k">${i + 1}</span><span>${esc(o)}</span></button>`).join('')}</div>`;
+    else if (ex.qhtml) top = `<div class="card qhtml" style="margin-bottom:20px">${ex.qhtml}</div>`;
+    else if (ex.q) top = `<div class="card" style="margin-bottom:20px;font-size:${ex.big ? 26 : 18}px;font-weight:800;line-height:1.45;${ex.big ? 'text-align:center' : ''}">${esc(ex.q)}</div>`;
+    const tm = ex.limit ? `<div class="timer"><div style="animation-duration:${ex.limit}s"></div></div>` : '';
+    return `${ex.kind ? kindTag(ex.kind) : ''}<div class="qtitle">${esc(ex.title)}</div>${tm}${top}<div class="opts ${ex.big ? 'big' : ''}">${ex.opts.map((o, i) => `<button class="opt" id="o${i}" onclick="pickOpt(${i})"><span class="k">${i + 1}</span><span>${esc(o)}</span></button>`).join('')}</div>`;
   },
   pickimg: ex => `${kindTag('Palavra nova')}<div class="qtitle">Qual destas é “${esc(ex.w[1])}”?</div><div class="img-opts">${ex.opts.map((o, i) => `<button class="img-opt" id="o${i}" onclick="pickImg(${i})"><span class="ie">${o[2]}</span><span>${esc(o[0])}</span></button>`).join('')}</div>`,
   match(ex) {
@@ -356,6 +362,7 @@ function check() {
   else if (ex.k === 'pickimg') { ok = ex.opts[L.sel] === ex.w; const ai = ex.opts.indexOf(ex.w); correct = ex.w[0]; $('#o' + ai).classList.add('right'); if (!ok) $('#o' + L.sel).classList.add('wrong'); }
   else if (ex.k === 'fill') { ok = ex.opts[L.sel].toLowerCase() === ex.a.toLowerCase(); correct = ex.say; }
   else if (ex.k === 'bank') { const got = L.placed.map(i => ex.tiles[i]).join(' '); ok = norm(got) === norm(ex.ans.join(' ')); correct = ex.dir === 'en2pt' ? UNITS[ex.u].f[ex.ref[2]][1] : ex.say; }
+  else if (ex.k === 'calc') { ok = L.val === ex.a; correct = ex.expr ? `${ex.expr} = ${ex.a}` : ex.a; $('#cd').classList.add(ok ? 'right' : 'wrong'); }
   else if (ex.k === 'type') {
     const got = norm($('#ta').value), want = norm(ex.en); correct = ex.en;
     if (got === want) ok = true; else if (lev(got, want) <= Math.max(1, Math.floor(want.length / 14))) { ok = true; note = `Quase perfeito! Atenção à escrita: <b>${esc(ex.en)}</b>`; }
@@ -363,9 +370,9 @@ function check() {
   finishCheck(ok, note, correct);
 }
 function finishCheck(ok, note = '', correct = '') {
-  const ex = L.ex; L.checked = true; L.graded++; S.ans++;
+  const ex = L.ex; if (L.checked) return; L.checked = true; clearTimeout(L.timer); L.graded++; S.ans++;
   if (ok) { L.ok++; S.ok++; L.combo++; SFX.ok(); } else { L.bad++; L.combo = 0; SFX.bad(); }
-  if (!ok) { L.queue.push(Object.assign({}, ex, {retry:true})); if (ex.ref && !S.mist.some(m => m.join() === ex.ref.join())) { S.mist.push(ex.ref); if (S.mist.length > 60) S.mist.shift(); } }
+  if (!ok && !L.noRetry) { L.queue.push(Object.assign({}, ex, {retry:true})); if (ex.ref && !S.mist.some(m => m.join() === ex.ref.join())) { S.mist.push(ex.ref); if (S.mist.length > 60) S.mist.shift(); } }
   else if (ex.retry && ex.ref) S.mist = S.mist.filter(m => m.join() !== ex.ref.join());
   save();
   const say = ex.say || (ex.k === 'pickimg' ? ex.w[0] : ex.sayAns);
@@ -375,22 +382,23 @@ function finishCheck(ok, note = '', correct = '') {
   if (ok) msg = note || (ex.k === 'bank' && ex.dir === 'listen' ? 'Significado: ' + esc(UNITS[ex.u].f[ex.ref[2]][1]) : ex.k === 'type' || ex.k === 'fill' ? esc(ex.say) : '');
   else msg = `Resposta correta:<br><b>${esc(correct)}</b>`;
   if (ex.why) msg += `<div class="why">${esc(ex.why)}</div>`;
-  if (!ok && !ex.retry && ex.k !== 'match') msg += `<div class="why">Tudo bem errar! Ela volta no fim para você fixar. 💪</div>`;
+  if (!ok && !ex.retry && ex.k !== 'match' && !L.noRetry) msg += `<div class="why">Tudo bem errar! Ela volta no fim para você fixar. 💪</div>`;
   foot.innerHTML = `<div class="inner"><div class="fb"><div class="fi">${ok ? '✅' : '💡'}</div><div><h3>${ok ? rnd(PRAISE) : 'Quase lá!'}</h3><p>${msg}</p></div></div><button class="btn ${ok ? '' : 'red'}" onclick="next()">Continuar</button></div>`;
   const pb = document.querySelector('.lprog div'); if (pb && ok) pb.style.width = Math.max(4, (L.done + 1) / (L.done + L.queue.length) * 100) + '%';
   const cb = document.querySelector('.combo'); if (cb) cb.textContent = L.combo >= 3 ? '⚡' + L.combo : '';
 }
-function next() { L.queue.shift(); L.done++; if (!L.queue.length) return finishLesson(); showEx(); }
+function next() { clearTimeout(L.timer); L.queue.shift(); L.done++; if (!L.queue.length) return finishLesson(); showEx(); }
 function askQuit() { sheet(`${mascot('sad')}<h3>Espera! Quer mesmo sair?</h3><p>Se sair agora, o progresso desta lição será perdido.</p><button class="btn blue" onclick="closeSheet()">Continuar estudando</button><button class="link" style="color:var(--red)" onclick="closeSheet();closeOverlay()">Sair da lição</button>`); }
 function finishLesson() {
   const secs = Math.round((Date.now() - L.start) / 1000), acc = L.graded ? Math.round(L.ok / L.graded * 100) : 100;
   const first = L.key && !S.done[L.key]; let xp = L.xp || 10; if (L.bad === 0 && L.graded) xp += 5; if (!first && L.key) xp = Math.round(xp / 2);
   if (L.key) S.done[L.key] = true;
-  S.xp += xp; S.lessons++; S.time += secs; if (L.onDone) L.onDone(); save();
+  S.xp += xp; S.lessons++; S.time += secs; const custom = L.onDone ? L.onDone(acc) : null; save();
   SFX.win(); confetti();
-  const mood = acc >= 80 ? 'happy' : 'wow';
-  const title = L.unitEnd && first ? 'Unidade concluída! 🏆' : acc === 100 ? 'Lição perfeita! ✨' : 'Lição concluída!';
-  const phrase = acc === 100 ? 'Você não errou nada. Que orgulho!' : acc >= 80 ? 'Ótimo trabalho! Você está evoluindo muito.' : 'Cada erro é aprendizado. Continue assim!';
+  const mood = custom && custom.mood || (acc >= 80 ? 'happy' : 'wow');
+  let title = L.unitEnd && first ? 'Unidade concluída! 🏆' : acc === 100 ? 'Lição perfeita! ✨' : 'Lição concluída!';
+  let phrase = acc === 100 ? 'Você não errou nada. Que orgulho!' : acc >= 80 ? 'Ótimo trabalho! Você está evoluindo muito.' : 'Cada erro é aprendizado. Continue assim!';
+  if (custom) { title = custom.title; phrase = custom.phrase; }
   showOverlay(`<div class="done-screen">${mascot(mood)}<h1>${title}</h1><p>${phrase}</p><div class="res"><div style="--rc:#ffb020"><small>XP ganho</small><b>⚡ ${xp}</b></div><div style="--rc:#58b800"><small>Precisão</small><b>🎯 ${acc}%</b></div><div style="--rc:#2c9cf2"><small>Tempo</small><b>⏱ ${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}</b></div></div></div><div class="lfoot"><div class="inner"><button class="btn" onclick="closeOverlay()">Continuar</button></div></div>`);
   L = null;
 }
@@ -405,10 +413,6 @@ function practiceHTML() {
   ${t('🎧', '#e2f1fd', 'Treino de escuta', 'Ouça e monte frases em inglês', 'practiceListen()', sentU.length ? '' : 'Complete uma lição de Frases para liberar')}
   ${t('✍️', '#fff1df', 'Treino de escrita', 'Escreva frases em inglês', 'practiceWrite()', sentU.length ? '' : 'Complete uma lição de Frases para liberar')}
   </div><div class="grp-title">Leituras</div><div class="tile-list">${STORIES.map((s, i) => t('📖', '#f2eafd', s.title, `${s.level} · texto + 3 perguntas${S.done['st' + i] ? ' · ✔️ feito' : ''}`, `startStory(${i})`)).join('')}</div>
-  <div class="grp-title">Jogos da mente</div><div class="tile-list">
-  ${t('🧠', '#e3f8ee', 'Memória', `Encontre os pares${S.best ? ' · recorde: ' + S.best + ' tentativas' : ''}`, 'startMemory()')}
-  ${t('🧩', '#fff1df', 'Raciocínio lógico', `${PUZZLES.length} desafios de lógica`, 'startLogic()')}
-  ${t('⚡', '#e2f1fd', 'Atenção', 'Memorize a sequência de símbolos', 'startSeq()')}
   </div></div>`;
 }
 function practiceMistakes() {
@@ -471,6 +475,7 @@ function profileHTML() {
   return `${topbar()}<div class="page"><div class="card" style="display:flex;gap:14px;align-items:center;background:${SECTIONS[lvl].l};border-color:transparent">${mascot('happy').replace('class="mas"', 'class="mas" style="width:96px;flex-shrink:0"')}<div><small style="font-weight:900;color:${SECTIONS[lvl].d};letter-spacing:.8px;text-transform:uppercase;font-size:12px">Seu nível</small><h1 style="margin:2px 0">${SECTIONS[lvl].lvl} · ${SECTIONS[lvl].t}</h1><div style="color:var(--ink2);font-weight:700;font-size:14px">${doneN} de ${NODES.length} lições concluídas</div></div></div>
   <div class="grp-title">Estatísticas</div><div class="stats"><div class="stat"><span class="si">⚡</span><div><b>${S.xp}</b><small>XP total</small></div></div><div class="stat"><span class="si">📚</span><div><b>${learnedWords().length}</b><small>Palavras</small></div></div><div class="stat"><span class="si">✅</span><div><b>${S.lessons}</b><small>Lições feitas</small></div></div><div class="stat"><span class="si">🎯</span><div><b>${acc}%</b><small>Precisão</small></div></div></div>
   <div class="grp-title">Caminho até a fluência</div><div class="card">${SECTIONS.map((s, i) => { const ns = NODES.filter(n => UNITS[n.u].s === i), d = ns.filter(n => S.done[n.key]).length; return `<div class="sec-row" style="--c:${s.c}"><div class="r1">${s.lvl} · ${s.t}<span>${d}/${ns.length}</span></div><div class="pbar"><div style="width:${d / ns.length * 100}%"></div></div></div>`; }).join('')}</div>
+  ${brainProfileHTML()}
   <div class="grp-title">Configurações</div><div class="card" style="padding:4px 16px">${sw('sfx', 'Efeitos sonoros')}${sw('audio', 'Voz em inglês', 'Pronúncia das palavras e frases')}${sw('listen', 'Exercícios de escuta', 'Desative se não puder usar som')}<div class="toggle"><div>Velocidade da voz</div><div class="seg">${[['Lenta', .7], ['Normal', .9], ['Rápida', 1.1]].map(([n, v]) => `<button class="${S.set.rate === v ? 'on' : ''}" onclick="S.set.rate=${v};save();render();speak('Hello! How are you today?')">${n}</button>`).join('')}</div></div></div>
   <div style="display:grid;gap:12px;margin-top:18px"><button class="btn ghost" onclick="speak('Hello! Welcome to Mente Plus. Let\\'s learn English together!')">🔊 Testar a voz</button><button class="btn ghost" onclick="S.onboard=false;wStep=1;save();render()">Mudar meu nível</button><button class="link" style="color:var(--red)" onclick="askReset()">Apagar todo o progresso</button></div>
   <p style="text-align:center;color:#b0b0bd;font-weight:700;font-size:13px;margin-top:20px">Mente+ · 100% grátis · funciona offline</p></div>`;
@@ -482,6 +487,7 @@ window.handleBack = function () {
   if (closeSheet()) return true;
   if ($('#overlay').classList.contains('show')) { if (L) askQuit(); else closeOverlay(); return true; }
   if (!S.onboard && wStep === 1) { wStep = 0; render(); return true; }
+  if (tab === 'brain' && bskill) { bskill = null; render(); return true; }
   if (tab !== 'learn') { go('learn'); return true; }
   return false;
 };
@@ -489,9 +495,10 @@ document.addEventListener('keydown', e => {
   if (!L || !$('#overlay').classList.contains('show')) return;
   if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA') { const b = $('#lfoot .btn'); if (b && !b.disabled) b.click(); }
   if (e.key === 'Enter' && e.target.tagName === 'TEXTAREA') { e.preventDefault(); const b = $('#lfoot .btn'); if (b && !b.disabled) b.click(); }
-  if (/^[1-4]$/.test(e.key) && L.ex && L.ex.k === 'mcq' && e.target.tagName !== 'TEXTAREA') { const i = +e.key - 1; if (i < L.ex.opts.length) pickOpt(i); }
+  if (L.ex && L.ex.k === 'calc' && /^[0-9]$/.test(e.key)) kp(e.key);
+  if (L.ex && L.ex.k === 'calc' && e.key === 'Backspace') kp('⌫');
+  if (/^[1-4]$/.test(e.key) && L.ex && L.ex.k !== 'calc' && L.ex.k === 'mcq' && e.target.tagName !== 'TEXTAREA') { const i = +e.key - 1; if (i < L.ex.opts.length) pickOpt(i); }
 });
 document.addEventListener('click', () => document.querySelectorAll('.gloss').forEach(g => g.remove()));
 
-render();
-if (S.onboard) scrollToCurrent();
+window.addEventListener('DOMContentLoaded', () => { render(); if (S.onboard) scrollToCurrent(); });
