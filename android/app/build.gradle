@@ -4,4 +4,6 @@ android {
   compileSdk 35
   defaultConfig { applicationId 'com.menteplus.app'; minSdk 24; targetSdk 34; versionCode 2; versionName '2.0' }
   sourceSets { main { assets.srcDirs = ['../../web'] } }
+  signingConfigs { fixa { storeFile file('menteplus.keystore'); storePassword 'menteplus'; keyAlias 'menteplus'; keyPassword 'menteplus' } }
+  buildTypes { debug { signingConfig signingConfigs.fixa } }
 }
